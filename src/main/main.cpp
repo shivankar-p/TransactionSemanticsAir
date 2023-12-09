@@ -53,6 +53,7 @@
 #include "../usecases/WinAgg.hpp"
 #include "../usecases/YSB.hpp"
 #include "../usecases/YSB_m.hpp"
+#include "../usecases/TSPE.hpp"
 
 using namespace std;
 
@@ -83,6 +84,10 @@ int main(int argc, char* argv[]) {
 		} else if (s.compare("YSB") == 0) {
 
 			dataflow = new YSB(tp);
+
+		} else if (s.compare("TSPE") == 0) {
+
+			dataflow = new TSPE();
 
 		} else if (s.compare("YSBM") == 0) {
 

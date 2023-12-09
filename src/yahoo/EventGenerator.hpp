@@ -66,6 +66,8 @@ private:
 
 	int myrandom(int min, int max);
 
+	string randomstr(int len);
+
 	string eventtypes[3] = {"click", "view", "purchase"};
 
 };

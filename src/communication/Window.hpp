@@ -38,7 +38,7 @@
 
 static const long THROUGHPUT = 25000000;//not used for YSB
 
-static const int PER_SEC_MSG_COUNT = 2;
+static const int PER_SEC_MSG_COUNT = 1;
 
 static const int EVENT_SIZE = 136; //bytes
 

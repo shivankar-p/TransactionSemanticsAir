@@ -98,6 +98,30 @@ void Serialization::encodeFloat(char* chars, float val) {
 	memcpy(chars, &val, sizeof(float));
 }
 
+void Serialization::TSPEserializeNode(EventNode* event, Message* message) {
+	char* b = message->buffer+message->size;
+	memcpy(b, &event->op_id, 5);
+	b += 5;
+	memcpy(b, &event->func, 20);
+	b += 20;
+	memcpy(b, &event->tag, 8);
+	b += 8;
+	memcpy(b, &event->cnt, 8);
+	message->size += sizeof(EventNode);
+}
+
+void Serialization::TSPEdeserializeNode(Message* message, EventNode* event,
+		int offset) {
+	char* b = message->buffer+offset;
+	memcpy(&event->op_id, b, 5);
+	b += 5;
+	memcpy(&event->func, b, 20);
+	b += 20;
+	memcpy(&event->tag, b, 8);
+	b += 8;
+	memcpy(&event->cnt, b, 8);
+}
+
 void Serialization::YSBserializeDG(EventDG* event, Message* message) {
 	char* b = message->buffer + message->size;
 	memcpy(b, &event->event_time, 8);
@@ -106,7 +130,7 @@ void Serialization::YSBserializeDG(EventDG* event, Message* message) {
 	b +=9;
 	memcpy(b, event->ad_id, 37);
 	b += 37;
-	memcpy(b, event->userid_pageid_ipaddress, 82);
+	memcpy(b, event->userid_pageid_ipaddress, 50);
 	message->size += sizeof(EventDG);
 }
 
@@ -119,7 +143,14 @@ void Serialization::YSBdeserializeDG(Message* message, EventDG* event,
 	b += 9;
 	memcpy(event->ad_id, b, 37);
 	b += 37;
-	memcpy(event->userid_pageid_ipaddress, b, 82);
+	memcpy(event->userid_pageid_ipaddress, b, 50);
+}
+
+void Serialization::TSPEprintNode(int rank, int tag, EventNode* event) {
+	cout << "RANK: " << rank << "\t TAG: " << tag << endl;
+	cout << "op_id:" << event->op_id << "\tfunction: "
+		<< event->func << "\t tag: " << event->tag
+		<< "\t dependencies: " << event->cnt << endl;
 }
 
 void Serialization::YSBprintDG(EventDG* event) {
@@ -144,6 +175,8 @@ void Serialization::YSBserializeFT(EventFT* event, Message* message) {
 	memcpy(b, &event->event_time, 8);
 	b += 8;
 	memcpy(b, event->ad_id, 37);
+	b += 37;
+	memcpy(b, event->userid_pageid_ipaddress, 50);
 	message->size += sizeof(EventFT);
 }
 
@@ -160,10 +193,12 @@ void Serialization::YSBdeserializeFT(Message* message, EventFT* event,
 	memcpy(&event->event_time, b, 8);
 	b += 8;
 	memcpy(event->ad_id, b, 37);
+	b += 37;
+	memcpy(event->userid_pageid_ipaddress, b, 50);
 }
 
 void Serialization::YSBprintFT(EventFT* event) {
-	cout << "event_time: " << event->event_time << "\tad_id: " << event->ad_id
+	cout << "event_time: " << event->event_time << "\tad_id: " << event->ad_id << "\tpattern: " << event->userid_pageid_ipaddress
 			<< endl;
 }
 
@@ -172,6 +207,8 @@ void Serialization::YSBserializeJ(EventJ* event, Message* message) {
 	memcpy(b, &event->event_time, 8);
 	b += 8;
 	memcpy(b, event->c_id, 37);
+	b += 37;
+	memcpy(b, event->userid_pageid_ipaddress, 50);
 	message->size += sizeof(EventJ);
 }
 
@@ -181,10 +218,12 @@ void Serialization::YSBdeserializeJ(Message* message, EventJ* event,
 	memcpy(&event->event_time, b, 8);
 	b += 8;
 	memcpy(event->c_id, b, 37);
+	b += 37;
+	memcpy(event->userid_pageid_ipaddress, b, 50);
 }
 
 void Serialization::YSBprintJ(EventJ* event) {
-	cout << "event_time: " << event->event_time << "\tc_id: " << event->c_id
+	cout << "event_time: " << event->event_time << "\tc_id: " << event->c_id << "\tpattern: " << event->userid_pageid_ipaddress
 			<< endl;
 }
 

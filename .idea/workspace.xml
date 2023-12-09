@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="35d3ffb6-4fe6-4ebb-a6b3-18815f524d82" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/CMakeLists.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/serialization/Serialization.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/serialization/Serialization.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/serialization/Serialization.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/serialization/Serialization.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/usecases/YSB.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/usecases/YSB.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/yahoo/EventFilter.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/yahoo/EventFilter.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/yahoo/EventGenerator.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/yahoo/EventGenerator.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/yahoo/EventGenerator.hpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/yahoo/EventGenerator.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/yahoo/FullAggregator.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/yahoo/FullAggregator.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/yahoo/PartialAggregator.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/yahoo/PartialAggregator.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/yahoo/SHJoin.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/yahoo/SHJoin.cpp" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 5
+}]]></component>
+  <component name="ProjectId" id="2Y2fwbpKKoQk6oZg8VzroDdXpuB" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "master",
+    "last_opened_file_path": "/Users/shivankar/AIR"
+  }
+}]]></component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="35d3ffb6-4fe6-4ebb-a6b3-18815f524d82" name="Changes" comment="" />
+      <created>1699728835133</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1699728835133</updated>
+    </task>
+    <servers />
+  </component>
+</project>

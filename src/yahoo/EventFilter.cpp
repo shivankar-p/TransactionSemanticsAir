@@ -41,7 +41,7 @@
 #include <list>
 #include <string>
 #include <vector>
-
+#include <regex>
 #include "../communication/Message.hpp"
 #include "../serialization/Serialization.hpp"
 
@@ -77,7 +77,6 @@ void EventFilter::streamProcess(int channel) {
 	EventFT eventFT;
 
 	int c = 0;
-
 	while (ALIVE) {
 
 		pthread_mutex_lock(&listenerMutexes[channel]);
@@ -144,13 +143,17 @@ void EventFilter::streamProcess(int channel) {
 						<< "\tevent_type: " << eventDG.event_type << "\t"
 						<< "ad_id: " << eventDG.ad_id << endl;)
 
-				if (strcmp(eventDG.event_type, "click")==0) { //FILTERING BASED ON EVENT_TYPE
+				std::regex pattern("[A-H][A-Z]*"); //caps alphabetical strings starting with A
+
+				if (regex_match(eventDG.userid_pageid_ipaddress, pattern)) { //FILTERING IF matching the regex pattern
+					//cout << "matched" << endl;
 					eventFT.event_time = eventDG.event_time;
 					memcpy(eventFT.ad_id, eventDG.ad_id, 37);
+					memcpy(eventFT.userid_pageid_ipaddress, eventDG.userid_pageid_ipaddress, 50);
 					sede.YSBserializeFT(&eventFT, outMessage); // store filtered events directly in outgoing message!
 //					sede.YSBdeserializeFT(outMessage, &eventFT,
 //							outMessage->size - sizeof(EventFT));
-//					sede.YSBprintFT(&eventFT);
+					//sede.YSBprintFT(&eventFT);
 					j++;
 				}
 

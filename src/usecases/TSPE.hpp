@@ -25,58 +25,29 @@
  **/
 
 /*
- * YSB.cpp
+ * YSB.hpp
  *
- *  Created on: July 23, 2018
- *      Author: martin.theobald, vinu.venugopal
+ *  Created on: Jun 18, 2018
+ *      Author: vinu.venugopal
  */
 
-#include "YSB.hpp"
+#ifndef USECASES_TSPE_HPP_
+#define USECASES_TSPE_HPP_
 
-#include "../yahoo/EventCollector.hpp"
-#include "../yahoo/EventFilter.hpp"
-#include "../yahoo/EventGenerator.hpp"
-#include "../yahoo/FullAggregator.hpp"
-#include "../yahoo/PartialAggregator.hpp"
-#include "../yahoo/SHJoin.hpp"
+#include "../dataflow/Dataflow.hpp"
 
 using namespace std;
-/**
-    * We calculate the latency as the difference between the result generation timestamp for a given `time_window` and `campaign_id`
-    * pair and the event timestamp of the latest record generated that belongs to that bucket.
- **/
 
-YSB::YSB(unsigned long throughput) :
-		Dataflow() {
+class TSPE: public Dataflow {
 
-	generator = new EventGenerator(1, rank, worldSize, throughput);
-	filter = new EventFilter(2, rank, worldSize);
-	//join = new SHJoin(3, rank, worldSize);
-	par_aggregate = new PartialAggregator(3, rank, worldSize);
-	full_aggregate = new FullAggregator(4, rank, worldSize);
-	collector = new EventCollector(5, rank, worldSize);
+public:
 
-	addLink(generator, filter);
-	//addLink(filter, join);
-	addLink(filter, par_aggregate);
-	addLink(par_aggregate, full_aggregate);
-	addLink(full_aggregate, collector);
+	Vertex *node, *node2, *node3;
 
-	generator->initialize();
-	filter->initialize();
-	//join->initialize();
-	par_aggregate->initialize();
-	full_aggregate->initialize();
-	collector->initialize();
-}
+	TSPE();
 
-YSB::~YSB() {
+	~TSPE();
 
-	delete generator;
-	delete filter;
-	delete join;
-	delete par_aggregate;
-	delete full_aggregate;
-	delete collector;
-}
+};
 
+#endif /* USECASES_YSB_HPP_ */

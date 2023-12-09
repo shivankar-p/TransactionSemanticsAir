@@ -122,6 +122,7 @@ void FullAggregator::streamProcess(int channel) {
 				WID = wrapper_unit.window_start_time / AGG_WIND_SPAN;
 
 				if (wrapper_unit.completeness_tag_denominator == 1) {
+					//cout << "pushing 1\n";
 					completed_windows.push_back(WID);
 				} else {
 					pthread_mutex_lock(&WIDtoWrapperUnit_mutex); //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -133,12 +134,13 @@ void FullAggregator::streamProcess(int channel) {
 								WIDtoWrapperUnit_it->second.first
 										+ wrapper_unit.completeness_tag_numerator;
 
-						//cout << "____AGGREGATE WRAPPER: " << WID << " NUM="
-						//		<< WIDtoWrapperUnit_it->second.first << " DEN="
-						//		<< WIDtoWrapperUnit_it->second.second << endl;
+						// cout << "____AGGREGATE WRAPPER: " << WID << " NUM="
+						// 		<< WIDtoWrapperUnit_it->second.first << " DEN="
+						// 		<< WIDtoWrapperUnit_it->second.second << endl;
 
 						if (WIDtoWrapperUnit_it->second.first
 								/ WIDtoWrapperUnit_it->second.second) {
+							//cout << "pushing 2\n";
 							completed_windows.push_back(WID);
 							WIDtoWrapperUnit.erase(WID);
 							//cout << "____WID COMPLETE: " << WID << endl;
@@ -163,6 +165,7 @@ void FullAggregator::streamProcess(int channel) {
 			outMessage = new Message(sizeof(EventPC) * 100); // create new message with max. required capacity
 
 			int event_count = (inMessage->size - offset) / sizeof(EventPA);
+			//cout << "Inside FA\n";
 			//cout << "EVENT_COUNT: " << event_count << endl;
 
 			pthread_mutex_lock(&WIDtoIHM_mutex); //===========================================================================
@@ -218,7 +221,7 @@ void FullAggregator::streamProcess(int channel) {
 			//printf("FULLAGGR MPI_Wtime: %lf\n", (MPI_Wtime() * 1000.0));
 
 			while (!completed_windows.empty()) {
-
+				//cout << "inside while loop\n";
 				WID = completed_windows.front();
 				completed_windows.pop_front();
 
@@ -238,8 +241,8 @@ void FullAggregator::streamProcess(int channel) {
 								CIDtoCountAndMaxEventTime_it->second.first;
 						eventPC.latency = (time_now - eventPA.max_event_time);
 
-						cout << "  " << j << "\tWID: " << eventPC.WID
-								<< "\tc_id: " << eventPC.c_id << "\tcount: "
+						cout  << " WID: " << eventPC.WID << "\t rank: " << rank
+								<< "\tcount: "
 								<< eventPC.count << "\tlatency: "
 								<< eventPC.latency << " SIZE "
 								<< outMessage->size << " CAP "

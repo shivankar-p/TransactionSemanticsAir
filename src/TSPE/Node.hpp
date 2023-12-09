@@ -25,58 +25,43 @@
  **/
 
 /*
- * YSB.cpp
+ * EventGenerator.cpp
  *
- *  Created on: July 23, 2018
- *      Author: martin.theobald, vinu.venugopal
+ *  Created on: Dec  06, 2018
+ *      Author: vinu.venugopal
  */
 
-#include "YSB.hpp"
+#ifndef CONNECTOR_NODE_HPP_
+#define CONNECTOR_NODE_HPP_
 
-#include "../yahoo/EventCollector.hpp"
-#include "../yahoo/EventFilter.hpp"
-#include "../yahoo/EventGenerator.hpp"
-#include "../yahoo/FullAggregator.hpp"
-#include "../yahoo/PartialAggregator.hpp"
-#include "../yahoo/SHJoin.hpp"
+#include "../dataflow/Vertex.hpp"
+#include "../communication/Message.hpp"
+#include "../serialization/Serialization.hpp"
 
 using namespace std;
-/**
-    * We calculate the latency as the difference between the result generation timestamp for a given `time_window` and `campaign_id`
-    * pair and the event timestamp of the latest record generated that belongs to that bucket.
- **/
+#include <fstream>
+#include <map>
 
-YSB::YSB(unsigned long throughput) :
-		Dataflow() {
+class Node: public Vertex {
 
-	generator = new EventGenerator(1, rank, worldSize, throughput);
-	filter = new EventFilter(2, rank, worldSize);
-	//join = new SHJoin(3, rank, worldSize);
-	par_aggregate = new PartialAggregator(3, rank, worldSize);
-	full_aggregate = new FullAggregator(4, rank, worldSize);
-	collector = new EventCollector(5, rank, worldSize);
+public:
 
-	addLink(generator, filter);
-	//addLink(filter, join);
-	addLink(filter, par_aggregate);
-	addLink(par_aggregate, full_aggregate);
-	addLink(full_aggregate, collector);
+	Node(int tag, int rank, int worldSize);
 
-	generator->initialize();
-	filter->initialize();
-	//join->initialize();
-	par_aggregate->initialize();
-	full_aggregate->initialize();
-	collector->initialize();
-}
+	~Node();
 
-YSB::~YSB() {
+	void batchProcess();
 
-	delete generator;
-	delete filter;
-	delete join;
-	delete par_aggregate;
-	delete full_aggregate;
-	delete collector;
-}
+	void streamProcess(int channel);
 
+private:
+
+	std::ofstream datafile;
+	string msg;
+	std::map<char,int> mem;
+
+	void getNextMessage(EventNode* event, WrapperUnit* wrapper_unit,
+		Message* message, int events_per_msg, long int time_now);
+};
+
+#endif /* CONNECTOR_NODE_HPP_ */

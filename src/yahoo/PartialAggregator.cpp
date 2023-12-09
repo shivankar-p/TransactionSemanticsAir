@@ -77,7 +77,7 @@ void PartialAggregator::streamProcess(int channel) {
 	InnerHMap::iterator CIDtoCountAndMaxEventTime_it; //IHM: Campaign_ID to Max-Event-time mapping
 
 	//WrapperUnit wrapper_unit;
-	EventJ eventJ;
+	EventFT eventFT;
 	EventPA eventPA;
 
 	int c = 0;
@@ -137,40 +137,40 @@ void PartialAggregator::streamProcess(int channel) {
 
 			while (i < event_count) {
 
-				sede.YSBdeserializeJ(inMessage, &eventJ,
-						offset + (i * sizeof(EventJ)));
+				sede.YSBdeserializeFT(inMessage, &eventFT,
+						offset + (i * sizeof(EventFT)));
 
 				//cout << "  " << i << "\tevent_time: " << eventJ.event_time
 				//		<< "\tc_id: " << eventJ.c_id << endl;
 
-				c_id = std::stol(eventJ.c_id, nullptr, 16);
-				WID = (eventJ.event_time / AGG_WIND_SPAN);
+				c_id = std::stol("3192274f-32f1-442b-8fc0-d5491664a447\0", nullptr, 16); //same campaign id always since its dummy
+				WID = (eventFT.event_time / AGG_WIND_SPAN);
 
 				if ((WIDtoIHM_it = WIDtoIHM.find(WID)) != WIDtoIHM.end()) {
-
+					//cout << "hlo\n";
 					if ((CIDtoCountAndMaxEventTime_it =
 							WIDtoIHM_it->second.find(c_id))
 							!= (WIDtoIHM_it->second).end()) {
 
 						CIDtoCountAndMaxEventTime_it->second.first =
-								CIDtoCountAndMaxEventTime_it->second.first + 1;
+								CIDtoCountAndMaxEventTime_it->second.first + 1; //updating the count
 
 						if (CIDtoCountAndMaxEventTime_it->second.second
-								< eventJ.event_time) { // new max. event time!
+								< eventFT.event_time) { // new max. event time!
 							CIDtoCountAndMaxEventTime_it->second.second =
-									eventJ.event_time;
+									eventFT.event_time;
 						}
 
 					} else { // new entry in inner hashmap!
 						WIDtoIHM_it->second.emplace(c_id,
-								std::make_pair(1, eventJ.event_time));
+								std::make_pair(1, eventFT.event_time));
 						k++;
 					}
 
 				} else { // new entry in the outer hashmap!
 					InnerHMap new_CIDtoCountAndMaxEventTime(100);
 					new_CIDtoCountAndMaxEventTime.emplace(c_id,
-							std::make_pair(1, eventJ.event_time));
+							std::make_pair(1, eventFT.event_time));
 					WIDtoIHM.emplace(WID, new_CIDtoCountAndMaxEventTime);
 
 					j++;
@@ -187,12 +187,12 @@ void PartialAggregator::streamProcess(int channel) {
 				int counter = 0, map_size_cal = 0; // for debugging!
 
 				WID = WIDtoIHM_it->first;
-
+				
 				for (CIDtoCountAndMaxEventTime_it =
 						(WIDtoIHM_it->second).begin();
 						CIDtoCountAndMaxEventTime_it
 								!= (WIDtoIHM_it->second).end();
-						CIDtoCountAndMaxEventTime_it++) {
+						CIDtoCountAndMaxEventTime_it++) { //this will only run once.
 					map_size_cal++;
 					eventPA.max_event_time =
 							CIDtoCountAndMaxEventTime_it->second.second;
@@ -203,8 +203,12 @@ void PartialAggregator::streamProcess(int channel) {
 
 					sede.YSBserializePA(&eventPA,
 							outMessagesToWindowIDs[WID % worldSize]);
+					//sede.YSBprintPA(&eventPA);
 
 				}
+
+				//cout << "printing map size cal " << map_size_cal << endl;
+				//cout << "printing counter " << counter << endl;
 
 				D(cout << " #W_ID: " << eventPA.max_event_time/AGG_WIND_SPAN
 						<< " #Event_time: " << eventPA.max_event_time
@@ -225,8 +229,8 @@ void PartialAggregator::streamProcess(int channel) {
 
 					int idx = n * worldSize + w; // iterate over all ranks
 
-					if (outMessagesToWindowIDs[w]->size > 20) { // quick fix for now
-
+					if (outMessagesToWindowIDs[w]->size > 10) { // quick fix for now
+						//cout << "going into if block\n";
 						// Normal mode: synchronize on outgoing message channel & send message
 						pthread_mutex_lock(&senderMutexes[idx]);
 						outMessages[idx].push_back(outMessagesToWindowIDs[w]);
@@ -241,10 +245,38 @@ void PartialAggregator::streamProcess(int channel) {
 						pthread_mutex_unlock(&senderMutexes[idx]);
 
 					} else {
-
+						//cout << "going to else block\n";
 						delete outMessagesToWindowIDs[w];
 					}
 				}
+
+				//even odd windows mapping
+				// int start = 0;
+				// if(WID % 2 == 1) start = 1;
+				// for (int w = start; w < worldSize; w+=2) {
+
+				// 	int idx = n * worldSize + w; // iterate over all ranks
+
+				// 	if (outMessagesToWindowIDs[w]->size > 10) { // quick fix for now
+				// 		//cout << "going into if block\n";
+				// 		// Normal mode: synchronize on outgoing message channel & send message
+				// 		pthread_mutex_lock(&senderMutexes[idx]);
+				// 		outMessages[idx].push_back(outMessagesToWindowIDs[w]);
+
+				// 		D(cout << "PARTIALAGGREGATOR->PUSHBACK MESSAGE [" << tag
+				// 				<< "] #" << c << " @ " << rank << " IN-CHANNEL "
+				// 				<< channel << " OUT-CHANNEL " << idx << " SIZE "
+				// 				<< outMessagesToWindowIDs[w]->size << " CAP "
+				// 				<< outMessagesToWindowIDs[w]->capacity << endl);
+
+				// 		pthread_cond_signal(&senderCondVars[idx]);
+				// 		pthread_mutex_unlock(&senderMutexes[idx]);
+
+				// 	} else {
+				// 		//cout << "going to else block\n";
+				// 		delete outMessagesToWindowIDs[w];
+				// 	}
+				// }
 
 				n++;
 			}

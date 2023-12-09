@@ -64,6 +64,7 @@
 
 #include <list>
 #include <vector>
+#include <map>
 
 #include "../communication/Message.hpp"
 #include "../function/Function.hpp"
@@ -93,6 +94,8 @@ typedef struct pthread_p {
 class Vertex {
 
 public:
+
+	std::map<string,vector<std::pair<int, int>>> edge_map;
 
 	int rank, worldSize, tag, listeningThreadsBatch; // basic MPI parameters
 

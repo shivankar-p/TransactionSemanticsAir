@@ -40,22 +40,31 @@
 
 using namespace std;
 
+typedef struct EventNode {
+	char op_id[5];
+	char func[20];
+	long int tag;
+	long int cnt;
+} EventNode;
+
 typedef struct EventDG {
 	long int event_time;
 //	int event_type; // possible values:  { view = 1, click = 2, purchase = 3}
 	char event_type[9];
 	char ad_id[37];
-	char userid_pageid_ipaddress[82]; // default value: "7ad5154e-b296-4b07-9cb8-15bb6a395b2f, 328df5ff-0e4a-4f8e-b3ea-5c35d6a3fb3b, 1.2.3.4\0"
+	char userid_pageid_ipaddress[50]; // default value: "7ad5154e-b296-4b07-9cb8-15bb6a395b2f, 328df5ff-0e4a-4f8e-b3ea-5c35d6a3fb3b, 1.2.3.4\0"
 } EventDG;
 
 typedef struct EventFT {
 	long int event_time;
 	char ad_id[37];
+	char userid_pageid_ipaddress[50];
 } EventFT;
 
 typedef struct EventJ {
 	long int event_time;
 	char c_id[37];
+	char userid_pageid_ipaddress[50];
 } EventJ;
 
 typedef struct EventPA {
@@ -110,6 +119,13 @@ public:
 	void unwrapFirstWU(Message* message, WrapperUnit* wu); //de-serializing the first wrapper-unit
 
 	void printWrapper(WrapperUnit* wc);
+
+	//--for TSPE ----
+
+	void TSPEserializeNode(EventNode* event, Message* message);
+	void TSPEdeserializeNode(Message* message, EventNode* event,
+		int offset);
+	void TSPEprintNode(int rank, int tag, EventNode* event);
 
 	//----for YSB----
 

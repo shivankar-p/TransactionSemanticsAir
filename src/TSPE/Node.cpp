@@ -42,59 +42,73 @@
 #include <list>
 #include <string>
 #include <vector>
+#include <sstream>
+#include <regex>
 
 #include "../communication/Window.hpp"
-#include "EventGenerator.hpp"
+#include "Node.hpp"
 
 using namespace std;
 
-EventGenerator::EventGenerator(int tag, int rank, int worldSize,
-		unsigned long tp) :
+Node::Node(int tag, int rank, int worldSize) :
 		Vertex(tag, rank, worldSize) {
-	this->throughput = tp;
-	std::ifstream ifile("../data/YSB_data/ad_ids.txt");
+    //assuming each file will have its rank message already constructed.
+	std::ifstream ifile("../TSPE_data/rank"+to_string(rank)+".txt");
+	//only 1 line
+	
 	for (std::string line; getline(ifile, line);) {
-		ad_ids.push_back(line);
+
+		msg = line;
 	}
 
-	cout << "AIR INSTANCE AT RANK " << (rank + 1) << "/" << worldSize << " | TP: " << throughput << " | MSG/SEC/RANK: " << PER_SEC_MSG_COUNT << " | AGGR_WINDOW: " << AGG_WIND_SPAN << "ms" << endl;
+	//initializing memory
+	mem['A'] = 500;
+	mem['B'] = 170;
 
-	S_CHECK(
-			datafile.open("Data/data" + to_string(rank) + ".tsv");
-	)
+	cout << "AIR INSTANCE AT RANK " << (rank + 1) << "/" << worldSize <<  " | MSG/SEC/RANK: " << PER_SEC_MSG_COUNT << " | AGGR_WINDOW: " << AGG_WIND_SPAN << "ms" << endl;
+
+	// S_CHECK(
+	// 		datafile.open("Data/data" + to_string(rank) + ".tsv");
+	// )
 
 	D(cout << "EVENTGENERATOR [" << tag << "] CREATED @ " << rank << endl;)
 }
 
-EventGenerator::~EventGenerator() {
+Node::~Node() {
 	D(cout << "EVENTGENERATOR [" << tag << "] DELTETED @ " << rank << endl;)
 }
 
-void EventGenerator::batchProcess() {
+void Node::batchProcess() {
 	D(
 			cout << "EVENTGENERATOR->BATCHPROCESS: TAG [" << tag << "] @ "
 			<< rank << endl
 			;)
 }
 
-void EventGenerator::streamProcess(int channel) {
-
-	cout << "in stream" << endl;
+void Node::streamProcess(int channel) {
 
 	D(
 			cout << "EVENTGENERATOR->STREAMPROCESS: TAG [" << tag << "] @ "
 			<< rank << " CHANNEL " << channel << endl
 			;)
 
+
 	Message* message;
 	Message** outMessagesPerSec = new Message*[PER_SEC_MSG_COUNT];
 
 	WrapperUnit wrapper_unit;
-	EventDG eventDG;
+	EventNode eventNode;
 
 	int wrappers_per_msg = 1; // currently only one wrapper per message!
 	//int events_per_msg = this->throughput / PER_SEC_MSG_COUNT / worldSize;
-	int events_per_msg = 1;
+	string dum = msg;
+	std::istringstream ss(dum);
+	int events_per_msg = 0;
+
+	// Loop through the string, splitting at ':'
+    while (std::getline(ss, dum, ':')) {
+        events_per_msg++;
+    }
 
 
 	long int start_time = (long int) MPI_Wtime();
@@ -102,7 +116,7 @@ void EventGenerator::streamProcess(int channel) {
 
 	int iteration_count = 0, c = 0;
 
-	while (ALIVE) {
+	while (iteration_count != 1) {
 
 //		cout << "\n_________Iteration: " << iteration_count
 //				<< ", Local-throughput: " << (THROUGHPUT / worldSize)
@@ -115,14 +129,12 @@ void EventGenerator::streamProcess(int channel) {
 		while (msg_count < PER_SEC_MSG_COUNT) {
 
 			outMessagesPerSec[msg_count] = new Message(
-					events_per_msg * sizeof(EventDG), wrappers_per_msg);
+					events_per_msg * sizeof(EventNode), wrappers_per_msg);
 
 			// Message header
 			long int time_now = (start_time + iteration_count) * 1000;
 			wrapper_unit.window_start_time = time_now + 999; // this is the max-event-end-time
-			wrapper_unit.completeness_tag_numerator = 1;
-			wrapper_unit.completeness_tag_denominator = PER_SEC_MSG_COUNT
-					* worldSize * AGG_WIND_SPAN / 1000;
+
 
 			memcpy(outMessagesPerSec[msg_count]->buffer, &wrappers_per_msg,
 					sizeof(int));
@@ -132,9 +144,15 @@ void EventGenerator::streamProcess(int channel) {
 					+ outMessagesPerSec[msg_count]->wrapper_length
 							* sizeof(WrapperUnit);
 
-			// Message body
-			getNextMessage(&eventDG, &wrapper_unit,
+
+			
+			getNextMessage(&eventNode, &wrapper_unit,
 					outMessagesPerSec[msg_count], events_per_msg, time_now);
+
+
+			//assuming message will be released of passed only after num == denominator
+			wrapper_unit.completeness_tag_numerator = 1;
+			wrapper_unit.completeness_tag_denominator = 1 + eventNode.cnt;
 
 			// Debug output ---
 			Serialization sede;
@@ -144,12 +162,15 @@ void EventGenerator::streamProcess(int channel) {
 //
 
 			for (int e = 0; e < events_per_msg; e++) {
-				sede.YSBdeserializeDG(outMessagesPerSec[msg_count], &eventDG,
+				sede.TSPEdeserializeNode(outMessagesPerSec[msg_count], &eventNode,
 						sizeof(int)
 								+ (outMessagesPerSec[msg_count]->wrapper_length
 										* sizeof(WrapperUnit))
-								+ (e * sizeof(EventDG)));
-				//sede.YSBprintDG(&eventDG);
+								+ (e * sizeof(EventNode)));
+				//we perform logic only if it matches the tag
+				if(eventNode.tag == tag ){
+					sede.TSPEprintNode(rank, tag, &eventNode);
+				}
 			}
 		D(	cout << "message_size: " << outMessagesPerSec[msg_count]->size
 					<< "\tmessage_capacity: "
@@ -174,6 +195,9 @@ void EventGenerator::streamProcess(int channel) {
 					++v) {
 
 				int idx = n * worldSize + rank; // always keep workload on same rank
+
+				// cout << rank << " " << tag << " " << (*v)->rank << " " << (*v)->tag << endl;
+				// cout << idx << endl;
 
 				if (PIPELINE) {
 
@@ -224,69 +248,100 @@ void EventGenerator::streamProcess(int channel) {
 	}
 }
 
-void EventGenerator::getNextMessage(EventDG* event, WrapperUnit* wrapper_unit,
+void Node::getNextMessage(EventNode* event, WrapperUnit* wrapper_unit,
 		Message* message, int events_per_msg, long int time_now) {
 
 	Serialization sede;
 
-	string rnd = randomstr(50);
-	const char* rndptr = rnd.c_str();
-	memcpy(event->ad_id, "3192274f-32f1-442b-8fc0-d5491664a447\0", 37); //default ad_id that would be replaced later
-	memcpy(event->userid_pageid_ipaddress,
-			rndptr,
-			50); //default values that would be used for all the events
+	std::istringstream ss(msg);
+    std::vector<std::vector<std::string>> parts;
+    std::string part;
+
+
+    
+	while (std::getline(ss, part, ':')) {
+		
+        std::vector<std::string> subparts;
+
+        // Further split each part by ','
+        std::istringstream partStream(part);
+        std::string subpart;
+
+        while (std::getline(partStream, subpart, ',')) {
+            subparts.push_back(subpart);
+        }
+
+        parts.push_back(subparts);
+    }
+
+	// for(int i = 0; i < parts.size(); i++) {
+	// 	for(int j = 0; j < 5; j++) cout << parts[i][j] << " ";
+	// 	cout << endl;
+	// }
+
+	// string rnd = randomstr(50);
+	// const char* rndptr = rnd.c_str();
+	// memcpy(event->ad_id, "3192274f-32f1-442b-8fc0-d5491664a447\0", 37); //default ad_id that would be replaced later
+	// memcpy(event->userid_pageid_ipaddress,
+	// 		rndptr,
+	// 		50); //default values that would be used for all the events
 
 	long int max_time = 0;
 
 	// Serializing the events
+	
 	int i = 0;
 	while (i < events_per_msg) {
 
-		memcpy(event->ad_id, ad_ids[myrandom(0, 999)].c_str(), 36);
-		event->event_time = time_now + (999 - i % 1000); // uniformly distribute event times among current message window, upper first
+
+		memcpy(event->op_id, parts[i][0].c_str(), 5);
+		memcpy(event->func, parts[i][1].c_str(), 20);
+		event->tag = std::stol(parts[i][2]);
+
+		string edge_str = parts[i][3];
+
+		if(edge_str != "")
+		{
+			std::vector<std::pair<int, int>> pairs;
+
+    		
+    		std::regex pattern("\\[(\\d+)_(\\d+)\\]");
+    		std::sregex_iterator it(edge_str.begin(), edge_str.end(), pattern);
+    		std::sregex_iterator end;
+
+    	
+    		for (; it != end; ++it) {
+    		    int first = std::stoi(it->str(1));
+    		    int second = std::stoi(it->str(2));
+				//cout << first << " " << second << endl;
+    		    pairs.emplace_back(first, second);
+    		}
+
+			edge_map[event->op_id] = pairs;
+		}
+		event->cnt = std::stol(parts[i][4]);
+		//cout << event->cnt << endl;
+		
+
+		//event->event_time = time_now + (999 - i % 1000); // uniformly distribute event times among current message window, upper first
 		//event->event_time = (long int) (MPI_Wtime() * 1000);
 
-		int rand_val = myrandom(0, 2);
+		// S_CHECK(
+		// 	datafile << event->event_time << "\t"
+		// 			//divide this by the agg wid size
+		// 			<< event->event_time / AGG_WIND_SPAN << "\t"
+		// 			//divide this by the agg wid size
+		// 			<< rank << "\t" << i << "\t" << event->event_type << "\t"
+		// 			<< event->ad_id << endl;
+		// );
+		//cout << "ser called\n";
+		sede.TSPEserializeNode(event, message);
 
-		//memcpy(event->event_type, eventtypes[rand_val].c_str(), strlen(eventtypes[rand_val].c_str()));
-		strcpy(event->event_type, eventtypes[rand_val].c_str());
-
-		S_CHECK(
-			datafile << event->event_time << "\t"
-					//divide this by the agg wid size
-					<< event->event_time / AGG_WIND_SPAN << "\t"
-					//divide this by the agg wid size
-					<< rank << "\t" << i << "\t" << event->event_type << "\t"
-					<< event->ad_id << endl;
-		);
-
-		sede.YSBserializeDG(event, message);
-
-		if (max_time < event->event_time)
-			max_time = event->event_time;
+		// if (max_time < event->event_time)
+		// 	max_time = event->event_time;
 
 		i++;
 	}
 
 	wrapper_unit->window_start_time = max_time;
-}
-
-int EventGenerator::myrandom(int min, int max) { //range : [min, max)
-	static bool first = true;
-	if (first) {
-		srand(time(NULL));
-		first = false;
-	}
-	return min + rand() % ((max + 1) - min);
-}
-
-string EventGenerator::randomstr(int len) {
-	static const char charset[] =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; // All uppercase letters
-
-    string result = "";
-    for (int i = 0; i<26; i++)
-        result = result + charset[rand() % 26];
-
-    return result;
 }

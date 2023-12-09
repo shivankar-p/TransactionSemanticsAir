@@ -25,79 +25,60 @@
  **/
 
 /*
- * SHJoin.cpp
+ * EventFilter.cpp
  *
- *  Created on: 13, Dec, 2018
+ *  Created on:
  *      Author: vinu.venugopal
  */
 
-#include "SHJoin.hpp"
+#include "Propogator.hpp"
 
+#include <mpi.h>
+//#include <__threading_support>
+#include <cstring>
 #include <iostream>
-#include <vector>
-#include <cstring>
 #include <iterator>
-#include <cstring>
+#include <list>
 #include <string>
-#include <sstream>
-#include <stdlib.h>
-#include <unordered_map>
-#include <fstream>
-
+#include <vector>
+#include <regex>
 #include "../communication/Message.hpp"
-#include "../dataflow/Vertex.hpp"
 #include "../serialization/Serialization.hpp"
 
 using namespace std;
 
-SHJoin::SHJoin(int tag, int rank, int worldSize) :
+Propogator::Propogator(int tag, int rank, int worldSize) :
 		Vertex(tag, rank, worldSize) {
-
-	std::ifstream ifile("../data/YSB_data/mapping_10000.txt");
-	S_CHECK(if (rank == 0) {
-		datafile.open("Data/mappings.tsv");
-	})
-
-	for (std::string line; getline(ifile, line);) {
-		map.insert(
-				std::make_pair(line.substr(1, 36) + "\0", line.substr(40, 36)));
-
-		S_CHECK(if (rank == 0) {
-			datafile << line.substr(1, 36) << "\t"
-					<< std::stol(line.substr(40, 36), nullptr, 16)
-					<< endl;
-
-		})
-	}
-
-	D(cout << "SHJOIN [" << tag << "] CREATED @ " << rank << endl;)
+	D(cout << "EVENTFILTER [" << tag << "] CREATED @ " << rank << endl;)
+	THROUGHPUT_LOG(
+			datafile.open("Data/tp_log"+ to_string(rank) + ".tsv");
+	)
 }
 
-SHJoin::~SHJoin() {
-	D(cout << "SHJOIN [" << tag << "] DELETED @ " << rank << endl;)
+Propogator::~Propogator() {
+	D(cout << "EVENTFILTER [" << tag << "] DELETED @ " << rank << endl;)
 }
 
-void SHJoin::batchProcess() {
-	D(cout << "SHJOIN->BATCHPROCESS [" << tag << "] @ " << rank << endl;)
+void Propogator::batchProcess() {
+	cout << "EVENTFILTER->BATCHPROCESS [" << tag << "] @ " << rank << endl;
 }
 
-void SHJoin::streamProcess(int channel) {
+void Propogator::streamProcess(int channel) {
 
-	D(cout << "SHJOIN->STREAMPROCESS [" << tag << "] @ " << rank << " IN-CHANNEL "
-			<< channel << endl;)
+	edge_map = (*(previous.begin()))->edge_map;
+
+	D(cout << "EVENTFILTER->STREAMPROCESS [" << tag << "] @ " << rank
+			<< " IN-CHANNEL " << channel << endl;)
 
 	Message* inMessage, *outMessage;
 	list<Message*>* tmpMessages = new list<Message*>();
 	Serialization sede;
 
-	adToCampaignHMap::iterator it;
-
-	//WrapperUnit wrapper_unit;
-	EventFT eventFT;
-	EventJ eventJ;
+	WrapperUnit wrapper_unit;
+	EventNode eventNode;
 
 	int c = 0;
-
+	int inp_cnt = 0;
 	while (ALIVE) {
 
 		pthread_mutex_lock(&listenerMutexes[channel]);
@@ -108,88 +89,106 @@ void SHJoin::streamProcess(int channel) {
 
 //		if(inMessages[channel].size()>1)
 //				  cout<<tag<<" CHANNEL-"<<channel<<" BUFFER SIZE:"<<inMessages[channel].size()<<endl;
-
+//
 
 		while (!inMessages[channel].empty()) {
+			//cout << rank << " actual debug " << tag << endl;
 			inMessage = inMessages[channel].front();
 			inMessages[channel].pop_front();
 			tmpMessages->push_back(inMessage);
+			inp_cnt++;
 		}
-
+		
 		pthread_mutex_unlock(&listenerMutexes[channel]);
-
 		while (!tmpMessages->empty()) {
 
 			inMessage = tmpMessages->front();
 			tmpMessages->pop_front();
 
-			D(cout << "SHJOIN->POP MESSAGE: TAG [" << tag << "] @ " << rank
+			D(cout << "EVENTFILTER->POP MESSAGE: TAG [" << tag << "] @ " << rank
 					<< " CHANNEL " << channel << " BUFFER " << inMessage->size
 					<< endl;)
 
 			sede.unwrap(inMessage);
-			//if (inMessage->wrapper_length > 0) {
-			//	sede.unwrapFirstWU(inMessage, &wrapper_unit);
-			//	sede.printWrapper(&wrapper_unit);
-			//}
+			
+			// if (inMessage->wrapper_length > 0) {
+			// 	sede.unwrapFirstWU(inMessage, &wrapper_unit);
+			// 	sede.printWrapper(&wrapper_unit);
+			// }
 
 			int offset = sizeof(int)
 					+ (inMessage->wrapper_length * sizeof(WrapperUnit));
 
+			// if(rank == 0 && tag == 3) cout << offset << endl;
+
 			outMessage = new Message(inMessage->size - offset,
 					inMessage->wrapper_length); // create new message with max. required capacity
+			//cout << "before\n";
 			memcpy(outMessage->buffer, inMessage->buffer, offset); // simply copy header from old message for now!
 			outMessage->size += offset;
+			//cout << "after\n";
 
-			int event_count = (inMessage->size - offset) / sizeof(EventFT);
+			int event_count = (inMessage->size - offset) / sizeof(EventNode);
+			// if(rank == 0 && tag == 3) cout << inMessage->size << " " << offset << endl;
 
-			D(cout << "EVENT_COUNT: " << event_count << endl;)
+
+
+			D(cout << "THROUGHPUT: " << event_count <<" @RANK-"<<rank<<" TIME: "<<(long int)MPI_Wtime()<< endl;)
+
+			THROUGHPUT_LOG(
+					datafile <<event_count<< "\t"
+					<<rank<< "\t"
+					<<(long int)MPI_Wtime()
+					<< endl;
+					)
+
 
 			int i = 0, j = 0;
+			//cout << rank << " " << tag << " " << event_count << endl;
+			//cout << rank << " " << tag << " " << event_count <<  "chkpt\n";
 			while (i < event_count) {
+				// cout << "checkpoint\n";
+				sede.TSPEdeserializeNode(inMessage, &eventNode,
+						offset + (i * sizeof(EventNode)));
 
-				sede.YSBdeserializeFT(inMessage, &eventFT,
-						offset + (i * sizeof(EventFT)));
+				D(cout << "  " << i << "\tevent_time: " << eventDG.event_time
+						<< "\tevent_type: " << eventDG.event_type << "\t"
+						<< "ad_id: " << eventDG.ad_id << endl;)
 
-				//if ((it = map.find(eventFT.ad_id)) != map.end()) {
-				if(true) {
+				
 
-					//cout << "  " << i << "\tevent_time: " << eventFT.event_time
-					//		<< "\tad_id: " << eventFT.ad_id << "\tc_id: "
-					//		<< it->second << endl;
-
-					eventJ.event_time = eventFT.event_time;
-					memcpy(eventJ.c_id, eventFT.ad_id, 37);
-					memcpy(eventJ.userid_pageid_ipaddress, eventFT.userid_pageid_ipaddress, 50);
-					sede.YSBserializeJ(&eventJ, outMessage); // store joined events directly in outgoing message!
-					//sede.YSBdeserializeJ(outMessage, &eventJ,
-					//		outMessage->size - sizeof(EventJ));
-					//sede.YSBprintJ(&eventJ);
+					sede.TSPEserializeNode(&eventNode, outMessage); // store filtered events directly in outgoing message!
+//					sede.YSBdeserializeFT(outMessage, &eventFT,
+//							outMessage->size - sizeof(EventFT));
+					if(eventNode.tag == tag){
+					//if(eventNode.tag == tag && inp_cnt == eventNode.cnt + 1){
+						//assuming printing has the processing logic
+                        sede.TSPEprintNode(rank, tag, &eventNode);
+                    }
 					j++;
-				}
 
 				i++;
 			}
 
-			D(cout << "W_ID: " << eventFT.event_time /AGG_WIND_SPAN
-					<<" RANK: "<<rank<<" TAG: "<<tag
-					<< "\n-----"<< endl;)
+			
+			//cout << "FILTERED_EVENT_COUNT: " << j << endl;
 
 			// Replicate data to all subsequent vertices, do not actually reshard the data here
-			int n = 0, listenerBuffer_offset = 0;
+			int n = 0;
+			int snd_cnt = 0;
 			for (vector<Vertex*>::iterator v = next.begin(); v != next.end();
 					++v) {
-
+				
 				int idx = n * worldSize + rank; // always keep workload on same rank
 
 				if (PIPELINE) {
-					idx = rank; // calculating the index of the buffer at the listener thread
+
 					// Pipeline mode: immediately copy message into next operator's queue
 					pthread_mutex_lock(&(*v)->listenerMutexes[idx]);
 					(*v)->inMessages[idx].push_back(outMessage);
 
-					D(cout << "SHJOIN->PIPELINE MESSAGE [" << tag << "] #" << c
-							<< " @ " << rank << " IN-CHANNEL " << channel
+					D(cout << "EVENTFILTER->PIPELINE MESSAGE [" << tag << "] #"
+							<< c << " @ " << rank << " IN-CHANNEL " << channel
 							<< " OUT-CHANNEL " << idx << " SIZE "
 							<< outMessage->size << " CAP "
 							<< outMessage->capacity << endl;)
@@ -203,8 +202,8 @@ void SHJoin::streamProcess(int channel) {
 					pthread_mutex_lock(&senderMutexes[idx]);
 					outMessages[idx].push_back(outMessage);
 
-					D(cout << "SHJOIN->PUSHBACK MESSAGE [" << tag << "] #" << c
-							<< " @ " << rank << " IN-CHANNEL " << channel
+					D(cout << "EVENTFILTER->PUSHBACK MESSAGE [" << tag << "] #"
+							<< c << " @ " << rank << " IN-CHANNEL " << channel
 							<< " OUT-CHANNEL " << idx << " SIZE "
 							<< outMessage->size << " CAP "
 							<< outMessage->capacity << endl;)
@@ -212,9 +211,33 @@ void SHJoin::streamProcess(int channel) {
 					pthread_cond_signal(&senderCondVars[idx]);
 					pthread_mutex_unlock(&senderMutexes[idx]);
 				}
+				
+
+
+				auto it = previous.begin();
+				auto mp = (*it)->edge_map;
+				// if(mp.find(eventNode.op_id) != mp.end()) {
+
+				// 	vector<pair<int,int>> sender_lst = mp[eventNode.op_id];
+				// 	for(auto x: sender_lst){
+						
+				// 			//send the event
+				// 			//snd_cnt++;
+				// 			cout << "sending the event\n";
+				// 			// int idx = (x.second-tag-1) * worldSize + x.first;
+				// 			int idx = x.first;
+
+				// 			pthread_mutex_lock(&senderMutexes[idx]);
+				// 			outMessages[idx].push_back(outMessage);
+
+
+				// 			pthread_cond_signal(&senderCondVars[idx]);
+				// 			pthread_mutex_unlock(&senderMutexes[idx]);
+				// 	}
+				// }
 
 				n++;
-				break; // only one successor node allowed!
+				break;
 			}
 
 			delete inMessage;
@@ -226,4 +249,3 @@ void SHJoin::streamProcess(int channel) {
 
 	delete tmpMessages;
 }
-

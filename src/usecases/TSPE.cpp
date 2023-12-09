@@ -31,14 +31,11 @@
  *      Author: martin.theobald, vinu.venugopal
  */
 
-#include "YSB.hpp"
+#include "TSPE.hpp"
 
-#include "../yahoo/EventCollector.hpp"
-#include "../yahoo/EventFilter.hpp"
-#include "../yahoo/EventGenerator.hpp"
-#include "../yahoo/FullAggregator.hpp"
-#include "../yahoo/PartialAggregator.hpp"
-#include "../yahoo/SHJoin.hpp"
+#include "../TSPE/Node.hpp"
+#include "../TSPE/Propogator.hpp"
+
 
 using namespace std;
 /**
@@ -46,37 +43,25 @@ using namespace std;
     * pair and the event timestamp of the latest record generated that belongs to that bucket.
  **/
 
-YSB::YSB(unsigned long throughput) :
+TSPE::TSPE() :
 		Dataflow() {
 
-	generator = new EventGenerator(1, rank, worldSize, throughput);
-	filter = new EventFilter(2, rank, worldSize);
-	//join = new SHJoin(3, rank, worldSize);
-	par_aggregate = new PartialAggregator(3, rank, worldSize);
-	full_aggregate = new FullAggregator(4, rank, worldSize);
-	collector = new EventCollector(5, rank, worldSize);
+    node = new Node(1, rank, worldSize);
+	node2 = new Propogator(2, rank, worldSize);
+	node3 = new Propogator(3, rank, worldSize);
 
-	addLink(generator, filter);
-	//addLink(filter, join);
-	addLink(filter, par_aggregate);
-	addLink(par_aggregate, full_aggregate);
-	addLink(full_aggregate, collector);
+	addLink(node, node2);
+	addLink(node2, node3);
 
-	generator->initialize();
-	filter->initialize();
-	//join->initialize();
-	par_aggregate->initialize();
-	full_aggregate->initialize();
-	collector->initialize();
+	node->initialize();
+	node2->initialize();
+	node3->initialize();
 }
 
-YSB::~YSB() {
+TSPE::~TSPE() {
 
-	delete generator;
-	delete filter;
-	delete join;
-	delete par_aggregate;
-	delete full_aggregate;
-	delete collector;
+	delete node;
+	delete node2;
+	delete node3;
 }
 
